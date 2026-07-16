@@ -1,0 +1,139 @@
+THIRD-PARTY LICENSES
+WhisperVoice v3.4  |  build 15.07.2026
+Copyright (c) 2026 Mariusz Świerguła
+
+This application uses third-party components. Each component remains subject
+to its own license. The author of this application does not claim ownership
+of third-party components. All third-party components remain the property of
+their respective authors, owners or licensors.
+
+NOTE: The Markdown file THIRD_PARTY_LICENSES.md is the canonical, most
+detailed version of this notice. This plain-text file is kept for convenience.
+
+================================================================================
+OPEN-SOURCE COMPONENTS
+================================================================================
+
+1. Python 3.12
+   License:  PSF-2.0 (Python Software Foundation License)
+   Source:   https://www.python.org/
+   Notes:    Application runtime. Permissive, compatible with commercial and
+             non-commercial use. Downloaded by the installer only when not
+             already present on the computer.
+
+2. faster-whisper
+   License:  MIT
+   Source:   https://github.com/SYSTRAN/faster-whisper
+   Notes:    Reimplementation of OpenAI Whisper using CTranslate2.
+
+3. CTranslate2
+   License:  MIT
+   Source:   https://github.com/OpenNMT/CTranslate2
+   Notes:    Inference engine used by faster-whisper (transitive dependency).
+
+4. sounddevice
+   License:  MIT
+   Source:   https://github.com/spatialaudio/python-sounddevice
+   Notes:    Python audio library wrapping PortAudio.
+
+5. PortAudio
+   License:  MIT
+   Source:   http://www.portaudio.com/
+   Notes:    Audio I/O library used indirectly by sounddevice.
+
+6. numpy
+   License:  BSD-3-Clause
+   Source:   https://numpy.org/
+   Notes:    Numerical computing library.
+
+7. keyboard
+   License:  MIT
+   Source:   https://github.com/boppreh/keyboard
+   Notes:    Global keyboard event handling library. Also used to send CTRL+V
+             and to type text (replaces the removed pyautogui — see note below).
+
+8. pystray
+   License:  LGPL-3.0-only
+   Source:   https://github.com/moses-palmer/pystray
+   Notes:    System tray icon library. Used as an unmodified library (installed
+             as a separate pip package, replaceable by the user). If modified,
+             those modifications must be made available under LGPL-3.0.
+
+9. Pillow
+   License:  HPND (Historical Permission Notice and Disclaimer)
+   Source:   https://python-pillow.org/
+   Notes:    Image processing library. HPND is permissive, similar to MIT.
+
+10. pyperclip
+    License:  BSD-3-Clause
+    Source:   https://github.com/asweigart/pyperclip
+    Notes:    Clipboard access library.
+
+11. Whisper large-v3 model weights
+    License:  MIT
+    Source:   https://huggingface.co/Systran/faster-whisper-large-v3
+    Notes:    Speech recognition model (OpenAI), MIT-licensed. Downloaded
+              automatically on first application launch (~3 GB), runs locally.
+
+--------------------------------------------------------------------------------
+TRANSITIVE DEPENDENCIES (installed automatically by pip with faster-whisper)
+--------------------------------------------------------------------------------
+
+T1. huggingface-hub   License: Apache-2.0   https://github.com/huggingface/huggingface_hub
+T2. tokenizers        License: Apache-2.0   https://github.com/huggingface/tokenizers
+T3. onnxruntime       License: MIT          https://github.com/microsoft/onnxruntime
+T4. tqdm              License: MPL-2.0 AND MIT   https://github.com/tqdm/tqdm
+T5. PyAV (av)         License: BSD-3-Clause https://github.com/PyAV-Org/PyAV
+                      Notes: PyAV wheels BUNDLE FFmpeg libraries (libav*).
+T6. FFmpeg (in PyAV)  License: LGPL-2.1-or-later   https://ffmpeg.org/
+                      Notes: Shipped inside the separate, replaceable `av` pip
+                             wheel — not statically linked into WhisperVoice,
+                             so LGPL terms are satisfied.
+
+--------------------------------------------------------------------------------
+LICENSING NOTE — pyautogui removed (GPLv3 avoidance)
+--------------------------------------------------------------------------------
+Earlier versions used `pyautogui` (BSD-3-Clause) for text injection. It was
+REMOVED because, as a hard dependency, it pulled in `mouseinfo` under the GPLv3
+license (strong copyleft, incompatible with permissive MIT distribution). Its
+functions (CTRL+V, typing) are now handled by `keyboard` (MIT), already present
+in the project. The project intentionally contains NO GPL/AGPL dependencies.
+
+================================================================================
+PROPRIETARY / CLOSED-SOURCE COMPONENTS (optional, NVIDIA GPU only)
+================================================================================
+
+1. nvidia-cublas-cu12
+   License:  NVIDIA Software License Agreement
+   Source:   https://pypi.org/project/nvidia-cublas-cu12/
+   Notes:    NVIDIA cuBLAS (GPU linear algebra), distributed via PyPI.
+             Installed by pip ONLY when an NVIDIA GPU is detected AND the user
+             opts in. May be used/redistributed per NVIDIA terms; must not be
+             modified or sold as a standalone product.
+             Full license: https://docs.nvidia.com/cuda/eula/
+
+2. NVIDIA Display Driver
+   License:  NVIDIA End User License Agreement (EULA)
+   Source:   https://www.nvidia.com/drivers
+   Notes:    Required for GPU acceleration. This application does NOT bundle,
+             install or update the NVIDIA driver — the user installs it
+             separately under NVIDIA's own terms.
+
+================================================================================
+CORRECTION vs v2.0
+================================================================================
+Earlier documentation listed "winget" and "NVIDIA GeForce Experience" as
+components used during installation. The application and installer DO NOT call
+them. They have been removed. WhisperVoice does not download, install or update
+NVIDIA drivers or GeForce Experience.
+
+================================================================================
+DISCLAIMER
+================================================================================
+This application is provided free of charge and "as is", without warranties of
+any kind, express or implied. The application itself does not collect, transmit
+or store personal data. Some third-party software may collect data under its own
+terms; such collection is controlled by the third-party provider, not by this
+application. The author is not responsible for third-party components, drivers,
+software behavior, or unsupported environments.
+================================================================================

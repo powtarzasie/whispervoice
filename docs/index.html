@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0a0d10" />
+
+  <title>WhisperVoice — lokalne dyktowanie głosem dla Windows</title>
+  <meta name="description" content="WhisperVoice — darmowe, lokalne dyktowanie głosem na Windows. Przytrzymaj hotkey, mów, puść — tekst pojawia się w aktywnym oknie. Działa offline, bez kont, model Whisper large-v3. Open source (MIT)." />
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none'%3E%3Crect width='32' height='32' rx='7' fill='%230c1015'/%3E%3Crect x='11' y='5' width='10' height='18' rx='5' stroke='%2322D3EE' stroke-width='1.8'/%3E%3Cline x1='16' y1='9' x2='16' y2='19' stroke='%2322D3EE' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M7 18a9 9 0 0 0 18 0' stroke='%2322D3EE' stroke-width='1.8' stroke-linecap='round'/%3E%3Cline x1='16' y1='26' x2='16' y2='28.5' stroke='%2322D3EE' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="pl_PL" />
+  <meta property="og:site_name" content="WhisperVoice" />
+  <meta property="og:url" content="https://powtarzasie.github.io/whispervoice/" />
+  <meta property="og:title" content="WhisperVoice — lokalne dyktowanie głosem dla Windows" />
+  <meta property="og:description" content="Przytrzymaj hotkey, mów, puść — tekst pojawia się w aktywnym oknie. Lokalnie, prywatnie, po polsku, offline po pobraniu modelu. Open source (MIT)." />
+
+  <style>
+    :root {
+      --bg0:#080b0e; --ink:#eef6f8; --muted:#a3b6c0; --dim:#748691; --faint:#5b6a73;
+      --accent:#22d3ee; --accent-soft:#67e8f9; --warm:#7dd3fc;
+      --green:#34d399; --green-l:#6ee7b7; --red:#f87171;
+      --line:rgba(255,255,255,.08); --line-soft:rgba(255,255,255,.05);
+      --mono:"Consolas","SF Mono",ui-monospace,monospace;
+      --ease:cubic-bezier(.22,.61,.36,1); --spring:cubic-bezier(.34,1.3,.64,1);
+    }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body {
+      margin:0; min-height:100vh; color:var(--ink);
+      font-family:"Segoe UI",system-ui,-apple-system,sans-serif;
+      font-size:16px; line-height:1.5; -webkit-font-smoothing:antialiased; overflow-x:hidden;
+      background:
+        radial-gradient(circle at 80% 12%, rgba(34,211,238,.20), transparent 32%),
+        radial-gradient(circle at 22% 74%, rgba(125,211,252,.10), transparent 36%),
+        linear-gradient(152deg, #080b0e 0%, #0c1218 48%, #0e1620 100%);
+    }
+    a { color:inherit; }
+    img { max-width:100%; display:block; }
+
+    .page { position:relative; z-index:1; display:grid; grid-template-columns:minmax(0,.94fr) minmax(0,1.06fr);
+      align-items:center; gap:clamp(30px,4vw,64px); max-width:1280px; margin:0 auto;
+      padding:clamp(30px,4vw,54px) clamp(22px,4vw,60px) clamp(24px,3vw,40px); }
+    .copy { display:flex; flex-direction:column; justify-content:center; min-width:0; }
+
+    .brand { display:inline-flex; align-items:center; gap:10px; font-weight:700; font-size:18px; letter-spacing:-.01em; margin:0 0 clamp(18px,2vw,26px); }
+    .brand svg { width:26px; height:26px; }
+    .brand b { color:var(--accent-soft); font-weight:800; }
+
+    .headline { margin:0 0 18px; font-weight:900; font-size:clamp(38px,4.8vw,68px); line-height:1.02; letter-spacing:-.04em; text-shadow:0 6px 26px rgba(0,0,0,.34); }
+    .headline span { display:block; color:var(--accent-soft); text-shadow:0 0 28px rgba(34,211,238,.4); }
+
+    .subhead { margin:0 0 24px; max-width:560px; color:var(--muted); font-size:clamp(17px,1.5vw,21px); line-height:1.42; font-weight:500; }
+    .subhead strong { color:var(--warm); font-weight:700; }
+
+    .compatibility-note { width:min(560px,100%); margin:0 0 24px; display:grid; grid-template-columns:44px 1fr; align-items:center; gap:14px;
+      padding:14px 18px; border-radius:16px; border:1px solid rgba(34,211,238,.24);
+      background:linear-gradient(145deg, rgba(34,211,238,.09), rgba(125,211,252,.04));
+      color:rgba(224,240,246,.92); font-size:clamp(13px,1vw,15.5px); line-height:1.42; font-weight:500; }
+    .compatibility-note svg { width:36px; height:36px; color:var(--accent-soft); }
+    .compatibility-note strong { color:var(--warm); font-weight:700; }
+    .compatibility-note p { margin:0; }
+
+    .features { width:min(580px,100%); margin:0 0 26px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px 18px; }
+    .feature { display:grid; grid-template-columns:52px 1fr; align-items:center; gap:14px; min-height:62px; padding:8px 0; border-bottom:1px solid var(--line); }
+    .icon-circle { width:48px; height:48px; display:grid; place-items:center; border-radius:50%; color:#04222a;
+      background:radial-gradient(circle at 35% 25%, rgba(255,255,255,.35), transparent 40%), linear-gradient(145deg, #7de8f7, #22d3ee);
+      box-shadow:inset 0 0 0 2px rgba(190,240,250,.34), 0 0 20px rgba(34,211,238,.34); }
+    .feature svg { width:25px; height:25px; stroke-width:2.4; }
+    .feature p { margin:0; font-size:clamp(14px,1.1vw,18px); line-height:1.12; font-weight:700; letter-spacing:-.02em; }
+
+    .actions { width:min(560px,100%); }
+    .download-btn { appearance:none; border:0; cursor:pointer; width:100%; display:grid; grid-template-columns:62px 1fr; align-items:center; gap:14px;
+      min-height:82px; padding:14px 26px; border-radius:20px; font:inherit; text-decoration:none;
+      background:linear-gradient(180deg, #7de8f7 0%, #22d3ee 52%, #0bb6d4 100%); color:#04222a;
+      box-shadow:0 0 0 2px rgba(190,240,250,.45) inset, 0 0 30px rgba(34,211,238,.4), 0 16px 32px rgba(0,0,0,.3);
+      transition:transform .18s ease, filter .18s ease, box-shadow .18s ease; }
+    .download-btn:hover, .download-btn:focus-visible { transform:translateY(-2px); filter:brightness(1.05); outline:none;
+      box-shadow:0 0 0 2px rgba(210,245,252,.7) inset, 0 0 44px rgba(34,211,238,.58), 0 20px 40px rgba(0,0,0,.34); }
+    .download-btn:active { transform:translateY(0) scale(.99); }
+    .download-btn svg { width:42px; height:42px; stroke-width:2.4; }
+    .download-btn-inner { display:flex; flex-direction:column; gap:3px; text-align:left; }
+    .download-btn-inner b { font-size:clamp(23px,2.3vw,32px); font-weight:900; letter-spacing:-.035em; line-height:1; }
+    .download-btn-sub { font-size:clamp(11px,.85vw,13px); font-weight:700; color:rgba(4,34,42,.72); }
+    .download-stats { margin:14px 0 0; color:rgba(163,182,192,.9); font-size:clamp(13px,1vw,15.5px); font-weight:600; text-align:center; font-variant-numeric:tabular-nums; }
+    .download-stats strong { color:var(--warm); font-weight:800; }
+    .hero-code { display:flex; align-items:center; justify-content:center; gap:8px; width:fit-content; margin:13px auto 0; padding:4px 2px;
+      color:var(--muted); font-size:14px; font-weight:700; text-decoration:none; border-bottom:1px solid transparent; transition:color .15s, border-color .15s; }
+    .hero-code svg { width:18px; height:18px; color:var(--accent-soft); stroke-width:2.4; }
+    .hero-code:hover { color:var(--ink); border-bottom-color:var(--accent-soft); }
+
+    /* ── Hero visual: dyktowanie ── */
+    .visual { position:relative; display:flex; align-items:center; min-width:0; }
+    .scene-wrap { position:relative; width:100%; }
+    .scene-wrap::before { content:""; position:absolute; inset:12% 8% 10% 6%; background:radial-gradient(ellipse at 50% 46%, rgba(34,211,238,.28), transparent 66%); filter:blur(16px); z-index:-1; }
+    .scene { position:relative; width:100%; border-radius:18px; overflow:hidden; border:1px solid var(--line);
+      box-shadow:0 32px 74px rgba(0,0,0,.55); background:linear-gradient(150deg,#141c26 0%,#0e151d 62%,#0b1119 100%); padding:clamp(22px,3vw,34px); }
+    .win-top { display:flex; align-items:center; gap:8px; margin-bottom:20px; }
+    .win-top i { width:11px; height:11px; border-radius:50%; background:rgba(255,255,255,.16); display:block; }
+    .win-top span { margin-left:auto; color:var(--dim); font-size:13px; }
+    .dictbox { border:1px solid var(--line); border-radius:14px; background:rgba(255,255,255,.02); padding:18px 18px 16px; }
+    .dictline { color:var(--ink); font-size:clamp(15px,1.5vw,19px); line-height:1.5; }
+    .dictline .typed { color:var(--ink); } .dictline .caret { display:inline-block; width:2px; height:1.05em; background:var(--accent); margin-left:1px; vertical-align:text-bottom; animation:blink 1.05s step-end infinite; }
+    @keyframes blink { 50% { opacity:0; } }
+    .mic-row { display:flex; align-items:center; gap:16px; margin-top:22px; }
+    .mic-btn { width:56px; height:56px; border-radius:50%; flex-shrink:0; display:grid; place-items:center; color:#04222a;
+      background:radial-gradient(circle at 35% 25%, rgba(255,255,255,.4), transparent 42%), linear-gradient(145deg,#7de8f7,#22d3ee);
+      box-shadow:0 0 0 6px rgba(34,211,238,.14), 0 0 26px rgba(34,211,238,.5); animation:pulse 2.4s var(--ease) infinite; }
+    .mic-btn svg { width:26px; height:26px; }
+    @keyframes pulse { 0%,100% { box-shadow:0 0 0 6px rgba(34,211,238,.14), 0 0 26px rgba(34,211,238,.5); } 50% { box-shadow:0 0 0 12px rgba(34,211,238,.05), 0 0 34px rgba(34,211,238,.6); } }
+    .wave { display:flex; align-items:center; gap:4px; height:40px; }
+    .wave i { width:4px; border-radius:3px; background:linear-gradient(180deg,var(--accent-soft),var(--accent)); animation:wave 1.1s var(--ease) infinite; }
+    .wave i:nth-child(1){height:30%;animation-delay:0s}.wave i:nth-child(2){height:70%;animation-delay:.1s}.wave i:nth-child(3){height:100%;animation-delay:.2s}.wave i:nth-child(4){height:55%;animation-delay:.3s}.wave i:nth-child(5){height:85%;animation-delay:.4s}.wave i:nth-child(6){height:40%;animation-delay:.5s}.wave i:nth-child(7){height:72%;animation-delay:.6s}.wave i:nth-child(8){height:30%;animation-delay:.7s}.wave i:nth-child(9){height:60%;animation-delay:.8s}.wave i:nth-child(10){height:45%;animation-delay:.9s}
+    @keyframes wave { 0%,100% { transform:scaleY(.5); opacity:.6; } 50% { transform:scaleY(1); opacity:1; } }
+    .hotkey-cap { display:inline-flex; align-items:center; gap:8px; margin-top:20px; color:var(--dim); font-size:13.5px; }
+    .kbd { font-family:var(--mono); font-size:12px; padding:3px 8px; border-radius:6px; border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--muted); }
+    .scene-cap { text-align:center; color:var(--faint); font-size:13px; margin:16px 0 0; }
+
+    /* ── Info sections ── */
+    .info-section { position:relative; z-index:2; max-width:1280px; margin:0 auto; padding:clamp(30px,4vw,56px) clamp(22px,4vw,60px) clamp(26px,3vw,46px); }
+    .info-section::before { content:""; display:block; width:min(720px,100%); height:1px; margin:0 auto clamp(26px,3vw,44px); background:linear-gradient(90deg,transparent,rgba(34,211,238,.4),transparent); }
+    .info-kicker { text-align:center; color:var(--accent-soft); font-size:13px; letter-spacing:.18em; text-transform:uppercase; font-weight:700; margin:0 0 12px; }
+    .info-heading { text-align:center; margin:0 0 clamp(26px,2.6vw,42px); font-size:clamp(26px,2.9vw,42px); font-weight:900; letter-spacing:-.04em; }
+    .info-heading span { color:var(--accent-soft); text-shadow:0 0 22px rgba(34,211,238,.4); }
+    .info-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:clamp(14px,1.8vw,22px); }
+    .info-card { position:relative; padding:clamp(20px,1.9vw,28px); border-radius:20px; border:1px solid rgba(34,211,238,.16);
+      background:linear-gradient(150deg, rgba(20,32,42,.72), rgba(12,18,24,.82)); display:grid; grid-template-columns:52px 1fr; gap:16px; align-items:start;
+      transition:transform .38s var(--ease), border-color .38s var(--ease), box-shadow .38s var(--ease); }
+    @media (hover:hover) { .info-card:hover { transform:translateY(-4px); border-color:rgba(34,211,238,.42); box-shadow:0 20px 44px rgba(0,0,0,.4), inset 0 0 30px rgba(34,211,238,.07); } }
+    .info-card-icon { width:52px; height:52px; display:grid; place-items:center; border-radius:14px; color:#04222a; flex-shrink:0;
+      background:radial-gradient(circle at 35% 25%, rgba(255,255,255,.28), transparent 40%), linear-gradient(145deg, #7de8f7, #22d3ee);
+      box-shadow:inset 0 0 0 2px rgba(190,240,250,.3), 0 0 18px rgba(34,211,238,.32); }
+    .info-card-icon svg { width:26px; height:26px; stroke-width:2.4; }
+    .info-card-title { margin:0 0 6px; font-size:clamp(16px,1.2vw,20px); font-weight:800; letter-spacing:-.02em; line-height:1.1; }
+    .info-card-desc { margin:0; font-size:clamp(13px,.96vw,15.5px); color:var(--muted); line-height:1.5; }
+    .info-card-desc strong { color:var(--warm); font-weight:700; }
+    .info-card-desc .mono { font-family:var(--mono); color:var(--accent-soft); font-size:.92em; }
+    .info-card-desc a { color:var(--accent-soft); text-decoration:none; }
+
+    /* ── Weryfikacja ── */
+    .verify-block { margin-top:12px; display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+    .verify-hash { flex:1 1 100%; font-family:var(--mono); font-size:12px; line-height:1.55; color:var(--accent-soft); word-break:break-all; user-select:all; background:rgba(255,255,255,.03); border:1px solid var(--line-soft); border-radius:8px; padding:8px 10px; }
+    .copy-btn { display:inline-flex; align-items:center; gap:7px; padding:8px 13px; border-radius:10px; border:1px solid rgba(34,211,238,.45); background:rgba(34,211,238,.08); color:var(--ink); font:inherit; font-weight:700; font-size:12.5px; cursor:pointer; transition:background .15s, transform .15s; }
+    .copy-btn:hover { background:rgba(34,211,238,.16); } .copy-btn:active { transform:scale(.97); }
+    .copy-btn svg { width:15px; height:15px; }
+    .copy-btn.copied { border-color:rgba(52,211,153,.5); background:rgba(52,211,153,.14); color:var(--green-l); }
+    .verify-details { max-width:760px; margin:clamp(22px,2.4vw,34px) auto 0; border:1px solid var(--line); border-radius:16px; background:rgba(255,255,255,.02); overflow:hidden; }
+    .verify-details summary { cursor:pointer; list-style:none; padding:16px 20px; font-weight:800; font-size:15.5px; display:flex; align-items:center; gap:11px; color:var(--ink); }
+    .verify-details summary::-webkit-details-marker { display:none; }
+    .verify-details summary::before { content:""; width:9px; height:9px; border-right:2px solid var(--accent-soft); border-bottom:2px solid var(--accent-soft); transform:rotate(-45deg); transition:transform .25s var(--ease); flex-shrink:0; }
+    .verify-details[open] summary::before { transform:rotate(45deg); }
+    .verify-steps { padding:0 20px 20px; color:var(--muted); font-size:14px; line-height:1.6; }
+    .verify-steps ol { margin:0 0 10px; padding-left:20px; } .verify-steps li { margin:4px 0; }
+    .verify-steps pre { margin:0; overflow-x:auto; }
+    .verify-steps pre code { display:block; font-family:var(--mono); font-size:12.5px; color:var(--accent-soft); background:rgba(255,255,255,.03); border:1px solid var(--line-soft); border-radius:8px; padding:10px 12px; white-space:pre-wrap; word-break:break-all; }
+    .smartscreen-note { text-align:center; color:var(--faint); font-size:13.5px; line-height:1.55; max-width:680px; margin:clamp(24px,2.6vw,38px) auto 0; }
+    .smartscreen-note strong { color:var(--dim); }
+
+    /* ── Recap ── */
+    .benefits { position:relative; z-index:2; display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:12px clamp(20px,3vw,40px); max-width:1000px; margin:0 auto; padding:clamp(24px,3.2vw,38px) clamp(22px,4vw,60px); color:var(--muted); }
+    .benefits::before { content:""; position:absolute; top:0; left:50%; transform:translateX(-50%); width:min(680px,82%); height:1px; background:linear-gradient(90deg,transparent,rgba(34,211,238,.34),transparent); }
+    .benefit { display:inline-flex; align-items:center; gap:9px; font-size:13.5px; font-weight:700; white-space:nowrap; }
+    .benefit svg { width:20px; height:20px; color:var(--accent-soft); stroke-width:2.2; flex-shrink:0; }
+
+    /* ── Footer ── */
+    .foot { position:relative; z-index:2; background:var(--bg0); padding:42px 0 48px; text-align:center; border-top:1px solid var(--line-soft); }
+    .foot .brand { justify-content:center; margin-bottom:14px; }
+    .foot p { margin:0 0 7px; }
+    .foot .a { color:var(--muted); font-size:14.5px; } .foot .a a { color:var(--accent-soft); text-decoration:none; }
+    .foot .lic { color:var(--dim); font-size:13px; }
+    .foot .tm { color:var(--faint); font-size:11.5px; max-width:600px; margin:14px auto 0; line-height:1.5; }
+
+    /* ── Modal ── */
+    .ov { position:fixed; inset:0; z-index:90; display:flex; align-items:center; justify-content:center; padding:22px; background:rgba(6,9,12,.82); backdrop-filter:blur(13px); -webkit-backdrop-filter:blur(13px); opacity:0; pointer-events:none; transition:opacity .26s ease; }
+    .ov.open { opacity:1; pointer-events:auto; }
+    .modal { position:relative; width:min(560px,100%); background:linear-gradient(160deg,#131b24,#0d141b); border:1px solid rgba(34,211,238,.22); border-radius:22px; padding:clamp(26px,4vw,40px); box-shadow:0 40px 90px rgba(0,0,0,.6), 0 0 50px rgba(34,211,238,.12); transform:translateY(18px) scale(.98); transition:transform .3s var(--spring); max-height:92vh; overflow-y:auto; }
+    .ov.open .modal { transform:none; }
+    .mclose { position:absolute; top:16px; right:16px; width:38px; height:38px; border-radius:50%; border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--muted); cursor:pointer; display:grid; place-items:center; }
+    .mclose:hover { background:rgba(34,211,238,.16); color:#fff; } .mclose svg { width:18px; height:18px; }
+    .mhead { display:flex; align-items:center; gap:15px; margin-bottom:22px; }
+    .mhead svg { width:34px; height:34px; color:var(--accent-soft); }
+    .mhead h2 { font-size:23px; margin:0 0 2px; font-weight:800; letter-spacing:-.02em; }
+    .mhead p { margin:0; color:var(--muted); font-size:14px; }
+    .mverdict { display:flex; gap:11px; align-items:flex-start; padding:13px 15px; margin:0 0 16px; border-radius:14px; border:1px solid rgba(52,211,153,.3); background:rgba(52,211,153,.08); }
+    .mverdict svg { width:22px; height:22px; color:var(--green-l); flex-shrink:0; margin-top:1px; }
+    .mverdict p { margin:0; font-size:13px; line-height:1.55; color:var(--muted); } .mverdict b { color:var(--ink); font-weight:800; }
+    .mpaths { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px; }
+    .mpath { display:flex; flex-direction:column; padding:15px; border-radius:14px; border:1px solid var(--line); background:rgba(255,255,255,.03); }
+    .mpath > svg { width:26px; height:26px; color:var(--accent-soft); margin-bottom:9px; }
+    .mpath-t { margin:0 0 3px; font-size:15px; font-weight:800; }
+    .mpath-d { margin:0 0 13px; font-size:12.5px; color:var(--muted); line-height:1.45; flex:1; }
+    .mpath-btn { display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; border-radius:12px; font:inherit; font-weight:800; font-size:14.5px; text-decoration:none; cursor:pointer; transition:filter .15s, transform .15s, background .15s; }
+    .mpath-btn:hover { transform:translateY(-1px); } .mpath-btn svg { width:20px; height:20px; }
+    .mpath-btn.primary { background:linear-gradient(180deg,#7de8f7,#0bb6d4); color:#04222a; box-shadow:0 10px 24px rgba(34,211,238,.3); }
+    .mpath-btn.primary:hover { filter:brightness(1.06); }
+    .mpath-btn.ghost { background:rgba(255,255,255,.04); color:var(--ink); border:1px solid rgba(34,211,238,.45); }
+    .mpath-btn.ghost:hover { background:rgba(34,211,238,.12); }
+    .mstats { text-align:center; color:var(--dim); font-size:13px; margin:9px 0 0; font-variant-numeric:tabular-nums; } .mstats strong { color:var(--warm); font-weight:700; }
+    .mvt { display:flex; align-items:center; gap:10px; margin:14px 0 0; padding:12px 14px; border-radius:12px; border:1px solid rgba(52,211,153,.3); background:rgba(52,211,153,.08); color:var(--ink); text-decoration:none; font-size:13.5px; font-weight:700; }
+    .mvt:hover { background:rgba(52,211,153,.15); } .mvt .lead { width:19px; height:19px; color:var(--green-l); flex-shrink:0; } .mvt span { flex:1; } .mvt .ext { width:16px; height:16px; color:var(--dim); }
+    .mtech { margin:12px 0 0; font-size:12px; color:var(--dim); line-height:1.6; } .mtech a { color:var(--accent-soft); text-decoration:none; } .mtech .mono { color:var(--accent-soft); word-break:break-all; }
+    .mnote { margin:16px 0 0; padding:14px 16px; border-radius:12px; background:rgba(255,255,255,.03); border:1px solid var(--line-soft); color:var(--muted); font-size:12.5px; line-height:1.55; } .mnote b { color:var(--ink); font-weight:700; }
+
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+
+    @media (max-width:980px) {
+      .page { grid-template-columns:1fr; gap:clamp(30px,5vw,48px); }
+      .copy { align-items:center; text-align:center; }
+      .features, .actions, .compatibility-note { margin-left:auto; margin-right:auto; }
+      .visual { order:2; } .scene-wrap { max-width:620px; margin:0 auto; }
+      .info-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    }
+    @media (max-width:560px) { .headline { font-size:clamp(32px,9vw,44px); } .features { grid-template-columns:1fr; } .info-grid { grid-template-columns:1fr; } }
+    @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; } }
+  </style>
+</head>
+<body>
+
+  <!-- ─────────── HERO ─────────── -->
+  <main class="page">
+    <section class="copy">
+      <p class="brand">
+        <svg viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="7" fill="#0c1015"/><rect x="11" y="5" width="10" height="18" rx="5" stroke="#22D3EE" stroke-width="1.8"/><line x1="16" y1="9" x2="16" y2="19" stroke="#22D3EE" stroke-width="1.8" stroke-linecap="round"/><path d="M7 18a9 9 0 0 0 18 0" stroke="#22D3EE" stroke-width="1.8" stroke-linecap="round"/><line x1="16" y1="26" x2="16" y2="28.5" stroke="#22D3EE" stroke-width="1.8" stroke-linecap="round"/></svg>
+        Whisper<b>Voice</b>
+      </p>
+
+      <h1 class="headline">
+        Mów, a tekst
+        <span>pisze się sam.</span>
+      </h1>
+
+      <p class="subhead">
+        Lokalne dyktowanie głosem na Windows. Przytrzymaj hotkey, powiedz co chcesz, puść — tekst pojawia się <strong>w aktywnym oknie</strong>. Model <strong>Whisper large-v3</strong> działa u Ciebie na komputerze, offline.
+      </p>
+
+      <div class="compatibility-note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        <p>Tylko <strong>Windows 10/11</strong> — aplikacja na komputer. Instalator jest mały (~2 MB); Pythona i pakiety pobiera przy instalacji, a model (~3 GB) przy pierwszym uruchomieniu.</p>
+      </div>
+
+      <div class="features">
+        <div class="feature">
+          <div class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4M8 21h8"/></svg></div>
+          <p>100% lokalnie<br />i offline</p>
+        </div>
+        <div class="feature">
+          <div class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M8 14h8"/></svg></div>
+          <p>Hotkey → wklejenie do okna</p>
+        </div>
+        <div class="feature">
+          <div class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg></div>
+          <p>Po polsku<br />i w innych językach</p>
+        </div>
+        <div class="feature">
+          <div class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+          <p>v3.4: naprawa halucynacji</p>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="download-btn" type="button" data-open-modal>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 21h16"/></svg>
+          <span class="download-btn-inner">
+            <b>Pobierz za darmo</b>
+            <small class="download-btn-sub">✦ Wersja v3.4 · open source (MIT) · weryfikowalny build</small>
+          </span>
+        </button>
+        <p class="download-stats" id="heroStats">Pobrań: —</p>
+        <a class="hero-code" href="https://github.com/powtarzasie/whispervoice" target="_blank" rel="noopener noreferrer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>
+          Zobacz kod na GitHub
+        </a>
+      </div>
+    </section>
+
+    <section class="visual" aria-label="Podgląd działania dyktowania">
+      <div class="scene-wrap">
+        <div class="scene" role="img" aria-label="Okno tekstowe, w którym pojawia się dyktowany tekst, oraz aktywny mikrofon z falą dźwięku.">
+          <div class="win-top"><i></i><i></i><i></i><span>Aktywne okno — dowolna aplikacja</span></div>
+          <div class="dictbox">
+            <p class="dictline"><span class="typed">Cześć, przygotuj proszę zestawienie kosztów za czerwiec</span><span class="caret"></span></p>
+          </div>
+          <div class="mic-row">
+            <div class="mic-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4M8 21h8"/></svg></div>
+            <div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          </div>
+          <div class="hotkey-cap"><span class="kbd">Scroll Lock</span> przytrzymaj i mów — puść, żeby wkleić</div>
+        </div>
+        <p class="scene-cap">Nagranie zostaje na Twoim komputerze · tekst trafia tam, gdzie masz kursor</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- ─────────── CO DOSTAJESZ ─────────── -->
+  <section class="info-section" aria-label="Co dostajesz">
+    <p class="info-kicker">Dyktowanie bez chmury</p>
+    <h2 class="info-heading">Co dostajesz <span>w środku</span></h2>
+    <div class="info-grid">
+      <div class="info-card">
+        <div class="info-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M8 14h8"/></svg></div>
+        <div>
+          <p class="info-card-title">Mów w dowolnym oknie</p>
+          <p class="info-card-desc">Przytrzymaj hotkey (domyślnie <span class="mono">Scroll Lock</span>), mów, puść — rozpoznany tekst zostaje wklejony tam, gdzie masz kursor: mail, edytor, przeglądarka, komunikator.</p>
+        </div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m12 3 8 4.5-8 4.5-8-4.5z"/><path d="M12 12v9"/></svg></div>
+        <div>
+          <p class="info-card-title">Model Whisper large-v3</p>
+          <p class="info-card-desc">Rozpoznawanie mowy oparte o <strong>faster-whisper</strong> i model <strong>large-v3</strong> — dobra jakość po polsku i w innych językach. Wszystko liczy się <strong>na Twoim komputerze</strong>.</p>
+        </div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-5"/></svg></div>
+        <div>
+          <p class="info-card-title">Prywatnie i offline</p>
+          <p class="info-card-desc">Po pobraniu modelu działa <strong>bez internetu</strong>. Nie potrzebuje kont OpenAI/Anthropic/HuggingFace. Nagrania i tekst <strong>nie opuszczają komputera</strong>.</p>
+        </div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+        <div>
+          <p class="info-card-title">Nowość w v3.4: koniec halucynacji</p>
+          <p class="info-card-desc">Whisper na ciszy/szumie potrafił dopisać frazy typu „napisy przygotowane przez…" czy „subskrybuj". v3.4 <strong>wykrywa i odrzuca</strong> takie wstawki w dwóch warstwach filtra.</p>
+        </div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
+        <div>
+          <p class="info-card-title">Ikona w zasobniku, ustawienia pod ręką</p>
+          <p class="info-card-desc">Działa w tle (ikona traya), można zmienić hotkey i zachowanie. Autostart z Windows opcjonalny — włączasz i zapominasz.</p>
+        </div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg></div>
+        <div>
+          <p class="info-card-title">Open source (MIT)</p>
+          <p class="info-card-desc">Cały kod jest publiczny i wolny — także do użytku komercyjnego. Licencje zależności opisane w <span class="mono">THIRD_PARTY_LICENSES</span> i <span class="mono">NOTICE.md</span>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────── SPRAWDŹ SAM ─────────── -->
+  <section class="info-section" aria-label="Zaufanie i weryfikowalność">
+    <p class="info-kicker">Nie musisz wierzyć na słowo</p>
+    <h2 class="info-heading">Sprawdź <span>sam</span></h2>
+    <div class="info-grid">
+      <div class="info-card">
+        <div class="info-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg></div>
+        <div>
+          <p class="info-card-title">Otwarty kod źródłowy</p>
+          <p class="info-card-desc">Cały kod jest w repozytorium: <a href="https://github.com/powtarzasie/whispervoice" target="_blank" rel="noopener noreferrer">github.com/powtarzasie/whispervoice</a>. Przeczytaj albo zbuduj instalator samodzielnie.</p>
+        </div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
+        <div>
+          <p class="info-card-title">Budowane w GitHub Actions</p>
+          <p class="info-card-desc">Instalator powstaje <strong>automatycznie z otagowanego kodu</strong> — nie wgrywam pliku „z własnego komputera". <a href="https://github.com/powtarzasie/whispervoice/actions" target="_blank" rel="noopener noreferrer">Log builda</a> jest publiczny.</p>
+        </div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg></div>
+        <div>
+          <p class="info-card-title">Suma kontrolna SHA-256</p>
+          <p class="info-card-desc">Po pobraniu porównaj <span class="mono">Get-FileHash</span> z wartością z wydania (plik <span class="mono">SHA256SUMS.txt</span>). Pełny hash <span class="mono">v3.4</span>:</p>
+          <div class="verify-block">
+            <code class="verify-hash" id="sha256full">__SHA256_Z_ASSETU_CI__</code>
+            <button type="button" class="copy-btn" data-copy="__SHA256_Z_ASSETU_CI__" data-done="Skopiowano" aria-label="Kopiuj sumę SHA-256">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <span data-label>Kopiuj SHA-256</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-5"/></svg></div>
+        <div>
+          <p class="info-card-title">Dowód pochodzenia (provenance)</p>
+          <p class="info-card-desc">Kryptograficzne potwierdzenie, że plik powstał z tego kodu i workflow:<br /><span class="mono">gh attestation verify plik.exe --repo powtarzasie/whispervoice</span></p>
+        </div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+        <div>
+          <p class="info-card-title">Prywatność widać w kodzie</p>
+          <p class="info-card-desc">Rozpoznawanie mowy dzieje się lokalnie — audio nie jest wysyłane do żadnego serwera. Możesz to sprawdzić w kodzie; dane robocze zapisują się w <span class="mono">%APPDATA%\WhisperVoice</span>.</p>
+        </div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="3" y1="12" x2="21" y2="12"/></svg></div>
+        <div>
+          <p class="info-card-title">Niezależny skan VirusTotal</p>
+          <p class="info-card-desc">Plik ma <a href="__VIRUSTOTAL_URL__" target="_blank" rel="noopener noreferrer" id="vtLink">publiczny raport na VirusTotal</a> — zobacz aktualny wynik. Niepodpisane instalatory Inno bywają fałszywie flagowane heurystycznie; w razie wątpliwości porównaj SHA-256.</p>
+        </div>
+      </div>
+    </div>
+
+    <span id="copyLive" class="sr-only" aria-live="polite"></span>
+
+    <details class="verify-details">
+      <summary>Jak sprawdzić pobrany plik?</summary>
+      <div class="verify-steps">
+        <ol>
+          <li>Pobierz instalator WhisperVoice.</li>
+          <li>Otwórz PowerShell w folderze, do którego pobrałeś plik.</li>
+          <li>Wklej polecenie:</li>
+        </ol>
+        <div class="verify-block">
+          <pre><code>Get-FileHash .\WhisperVoice_Setup_v3.4.exe -Algorithm SHA256</code></pre>
+          <button type="button" class="copy-btn" data-copy="Get-FileHash .\WhisperVoice_Setup_v3.4.exe -Algorithm SHA256" data-done="Skopiowano" aria-label="Kopiuj polecenie PowerShell">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <span data-label>Kopiuj polecenie</span>
+          </button>
+        </div>
+        <ol start="4">
+          <li>Porównaj wynik z opublikowaną sumą SHA-256. Zgodność = plik jest ten sam, co opublikowany przy wydaniu.</li>
+        </ol>
+      </div>
+    </details>
+    <details class="verify-details">
+      <summary>Jak sprawdzić plik na VirusTotal (przed instalacją)?</summary>
+      <div class="verify-steps">
+        <ol>
+          <li>Wejdź na <a href="https://www.virustotal.com/gui/home/upload" target="_blank" rel="noopener noreferrer">virustotal.com</a> i przeciągnij pobrany plik w pole skanowania.</li>
+          <li>Nie chcesz wgrywać? W zakładce <strong>Search</strong> wklej jego SHA-256 — VirusTotal pokaże istniejący raport bez przesyłania.</li>
+          <li>Poczekaj na wynik skanu kilkudziesięcioma silnikami i zobacz ogólny obraz.</li>
+          <li>Pojedyncze fałszywe alarmy przy niepodpisanych instalatorach Inno się zdarzają — liczy się całość i zgodność SHA-256.</li>
+        </ol>
+      </div>
+    </details>
+
+    <p class="smartscreen-note">
+      Instalator nie ma jeszcze podpisu <strong>Code Signing</strong>. Windows może dlatego pokazać ostrzeżenie SmartScreen lub „nieznany wydawca".
+      Przed instalacją możesz zweryfikować SHA-256, pochodzenie builda w GitHub Actions oraz publiczny raport VirusTotal. — Mariusz Świerguła
+    </p>
+  </section>
+
+  <!-- ─────────── RECAP ─────────── -->
+  <section class="benefits" aria-label="W skrócie">
+    <span class="benefit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-5"/></svg>Audio nie opuszcza komputera</span>
+    <span class="benefit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M5 18a4 4 0 0 1 .6-7.9 6 6 0 0 1 11.2-1.6A4.5 4.5 0 0 1 18 18z"/><line x1="2" y1="2" x2="22" y2="22"/></svg>Działa offline</span>
+    <span class="benefit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>Open source (MIT)</span>
+    <span class="benefit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Bez kont i chmury</span>
+  </section>
+
+  <!-- ─────────── FOOTER ─────────── -->
+  <footer class="foot">
+    <div class="page" style="display:block; padding-top:0; padding-bottom:0;">
+      <p class="brand"><svg viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="7" fill="#0c1015"/><rect x="11" y="5" width="10" height="18" rx="5" stroke="#22D3EE" stroke-width="1.8"/><line x1="16" y1="9" x2="16" y2="19" stroke="#22D3EE" stroke-width="1.8" stroke-linecap="round"/><path d="M7 18a9 9 0 0 0 18 0" stroke="#22D3EE" stroke-width="1.8" stroke-linecap="round"/><line x1="16" y1="26" x2="16" y2="28.5" stroke="#22D3EE" stroke-width="1.8" stroke-linecap="round"/></svg> Whisper<b>Voice</b> <span style="color:var(--dim);font-weight:600;margin-left:6px">v3.4</span></p>
+      <p class="a">Autor: Mariusz Świerguła — <a href="mailto:mariusz.swiergula@gmail.com">mariusz.swiergula@gmail.com</a></p>
+      <p class="lic">© 2026 Mariusz Świerguła · Licencja MIT · Python + Whisper large-v3 · Wyłącznie na Windows 10/11 (komputer)</p>
+      <p class="tm">„Whisper" to model rozpoznawania mowy udostępniony przez OpenAI na licencji open source; WhisperVoice używa go lokalnie i nie jest powiązany z OpenAI.</p>
+    </div>
+  </footer>
+
+  <!-- ─────────── MODAL ─────────── -->
+  <div class="ov" id="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+    <div class="modal">
+      <button class="mclose" id="mClose" aria-label="Zamknij"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      <div class="mhead">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4M8 21h8"/></svg>
+        <div>
+          <h2 id="mTitle">Pobierz WhisperVoice</h2>
+          <p>Lokalne dyktowanie głosem na Windows — offline i za darmo</p>
+        </div>
+      </div>
+      <div class="mverdict">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-5"/></svg>
+        <p><b>Otwarty i weryfikowalny.</b> Kod jest publiczny, a plik ma sumę SHA-256, dowód pochodzenia (provenance) i publiczny raport VirusTotal — możesz sam sprawdzić, co pobierasz.</p>
+      </div>
+      <div class="mpaths">
+        <div class="mpath">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>
+          <p class="mpath-t">Wolę najpierw zajrzeć</p>
+          <p class="mpath-d">Cały kod jest publiczny (MIT). Zobacz go albo zbuduj program samodzielnie.</p>
+          <a class="mpath-btn ghost" href="https://github.com/powtarzasie/whispervoice" target="_blank" rel="noopener noreferrer">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.49 0-.24-.01-.88-.01-1.73-2.78.62-3.37-1.34-3.37-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.04 1.53 1.04.89 1.55 2.34 1.1 2.91.84.09-.65.35-1.1.63-1.35-2.22-.26-4.56-1.13-4.56-5.02 0-1.11.39-2.02 1.03-2.73-.1-.26-.45-1.3.1-2.7 0 0 .84-.28 2.75 1.04a9.3 9.3 0 0 1 5 0c1.91-1.32 2.75-1.04 2.75-1.04.55 1.4.2 2.44.1 2.7.64.71 1.03 1.62 1.03 2.73 0 3.9-2.34 4.76-4.57 5.01.36.32.68.94.68 1.9 0 1.37-.01 2.48-.01 2.82 0 .27.18.59.69.49A10.02 10.02 0 0 0 22 12.25C22 6.58 17.52 2 12 2z"/></svg>
+            Zobacz kod na GitHub
+          </a>
+        </div>
+        <div class="mpath">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 21h16"/></svg>
+          <p class="mpath-t">Pobierz gotowy program</p>
+          <p class="mpath-d">WhisperVoice_Setup_v3.4.exe · ~2 MB · Windows 10/11. Model (~3 GB) pobiera się przy pierwszym uruchomieniu.</p>
+          <a class="mpath-btn primary" id="dlBtn" href="https://github.com/powtarzasie/whispervoice/releases/download/v3.4/WhisperVoice_Setup_v3.4.exe" download>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 21h16"/></svg>
+            Pobierz instalator
+          </a>
+          <p class="mstats" id="modalStats">Pobrań: —</p>
+        </div>
+      </div>
+      <a class="mvt" href="__VIRUSTOTAL_URL__" target="_blank" rel="noopener noreferrer" id="vtLinkModal">
+        <svg class="lead" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-5"/></svg>
+        <span>Publiczny raport VirusTotal — zobacz wynik</span>
+        <svg class="ext" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>
+      </a>
+      <p class="mtech">Dla technicznych: <a href="https://github.com/powtarzasie/whispervoice/actions" target="_blank" rel="noopener noreferrer">build w GitHub Actions</a>, suma <b>SHA-256</b> i <b>provenance</b> przy każdym wydaniu. SHA-256 v3.4: <span class="mono" id="mtechSha">__SHA256_Z_ASSETU_CI__</span></p>
+      <p class="mnote"><b>Przy pierwszym uruchomieniu</b> Windows może pokazać SmartScreen („System Windows ochronił ten komputer") — to normalne dla programu bez płatnego certyfikatu. Kliknij <b>„Więcej informacji" → „Uruchom mimo to"</b>. Instalujesz na własną odpowiedzialność.</p>
+    </div>
+  </div>
+
+  <script>
+    /* ── Modal ── */
+    var modal = document.getElementById('modal'), mClose = document.getElementById('mClose');
+    function openModal(){ modal.classList.add('open'); document.body.style.overflow='hidden'; mClose.focus(); }
+    function closeModal(){ modal.classList.remove('open'); document.body.style.overflow=''; }
+    document.querySelectorAll('[data-open-modal]').forEach(function(b){ b.addEventListener('click', openModal); });
+    mClose.addEventListener('click', closeModal);
+    modal.addEventListener('click', function(e){ if(e.target===modal) closeModal(); });
+    document.addEventListener('keydown', function(e){ if(e.key==='Escape' && modal.classList.contains('open')) closeModal(); });
+
+    /* ── Licznik pobrań (suma .exe ze wszystkich wydań) ── */
+    (function(){
+      var API = 'https://api.github.com/repos/powtarzasie/whispervoice/releases';
+      var heroStats = document.getElementById('heroStats'), modalStats = document.getElementById('modalStats');
+      var reduce = matchMedia('(prefers-reduced-motion:reduce)').matches;
+      function fmt(n){ return n.toLocaleString('pl-PL'); }
+      function set(el, n){ if(!el) return; el.innerHTML = (typeof n==='number') ? 'Pobrań: <strong>'+fmt(n)+'</strong>' : 'Pobrań: —'; }
+      function countUp(el, target){
+        if(!el) return;
+        if(reduce || target<=0){ set(el, target); return; }
+        var dur=900, start=0;
+        function tick(now){ if(!start) start=now; var p=Math.min(1,(now-start)/dur), e=1-Math.pow(1-p,3);
+          el.innerHTML='Pobrań: <strong>'+fmt(Math.round(target*e))+'</strong>'; if(p<1) requestAnimationFrame(tick); }
+        requestAnimationFrame(tick);
+      }
+      fetch(API, { headers:{ 'Accept':'application/vnd.github+json' } })
+        .then(function(r){ if(!r.ok) throw new Error('GitHub '+r.status); return r.json(); })
+        .then(function(rels){ var total=0; (rels||[]).forEach(function(rel){ (rel.assets||[]).forEach(function(a){ if(/\.exe$/i.test(a.name)) total += (a.download_count||0); }); });
+          countUp(heroStats,total); countUp(modalStats,total); })
+        .catch(function(e){ console.warn(e); set(heroStats,null); set(modalStats,null); });
+    })();
+
+    /* ── Kopiowanie do schowka ── */
+    (function(){
+      var live = document.getElementById('copyLive');
+      function fallbackCopy(text){ try { var ta=document.createElement('textarea'); ta.value=text; ta.setAttribute('readonly','');
+        ta.style.position='absolute'; ta.style.left='-9999px'; document.body.appendChild(ta); ta.select();
+        var ok=document.execCommand('copy'); document.body.removeChild(ta); return ok; } catch(e){ return false; } }
+      function flash(btn){ var span=btn.querySelector('[data-label]'); if(!span) return; if(btn._orig==null) btn._orig=span.textContent;
+        span.textContent=btn.getAttribute('data-done')||'Skopiowano'; btn.classList.add('copied'); if(live) live.textContent=span.textContent;
+        clearTimeout(btn._t); btn._t=setTimeout(function(){ span.textContent=btn._orig; btn.classList.remove('copied'); if(live) live.textContent=''; }, 2000); }
+      [].slice.call(document.querySelectorAll('.copy-btn[data-copy]')).forEach(function(btn){
+        btn.addEventListener('click', function(){ var text=btn.getAttribute('data-copy');
+          if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(function(){ flash(btn); }, function(){ if(fallbackCopy(text)) flash(btn); }); }
+          else if(fallbackCopy(text)) flash(btn); });
+      });
+    })();
+  </script>
+</body>
+</html>

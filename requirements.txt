@@ -1,0 +1,31 @@
+# WhisperVoice v3.4  |  build 15.07.2026
+# Zaleznosci Python
+# Instalacja: pip install -r requirements.txt
+
+# Transkrypcja (Whisper na CTranslate2)
+faster-whisper>=1.0.0
+
+# UWAGA: nvidia-cublas-cu12 (~400 MB) jest instalowane WARUNKOWO przez install.bat
+# tylko gdy wykryto sterowniki NVIDIA (nvidia-smi). Nie instaluj recznie jesli
+# nie masz karty NVIDIA — niepotrzebnie pobierze 400 MB danych.
+
+# Audio
+sounddevice>=0.4.6
+numpy>=1.24.0
+
+# Globalny hotkey
+keyboard>=0.13.5
+
+# Ikona w trayu systemu
+pystray>=0.19.5
+
+# Manipulacja obrazami (ikona trayu)
+Pillow>=10.0.0
+
+# Schowek systemowy
+pyperclip>=1.8.2
+
+# UWAGA licencyjna: wklejanie (CTRL+V) i typowanie awaryjne obsługuje biblioteka
+# `keyboard` (MIT, powyżej). Wcześniejszy `pyautogui` został CELOWO usunięty —
+# wciągał zależność `mouseinfo` na licencji GPLv3 (silny copyleft), niezgodną
+# z permisywną, darmową dystrybucją MIT. Nie dodawaj pyautogui z powrotem.

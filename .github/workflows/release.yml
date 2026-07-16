@@ -1,0 +1,88 @@
+name: Build & Release
+
+# Wydanie powstaje z OTAGOWANEGO kodu (np. `git tag v3.4 && git push --tags`).
+# workflow_dispatch pozwala zrobić „smoke test" builda bez tworzenia Release.
+#
+# STACK: Python + Inno Setup. Instalator jest mały (~2 MB) — Pythona i pakiety
+# pobiera się u użytkownika przy instalacji, model (~3 GB) przy 1. uruchomieniu.
+# Nazwa assetu (WhisperVoice_Setup_v3.4.exe) wynika z OutputBaseFilename w .iss
+# i MUSI zgadzać się z linkiem pobierania na landingu (docs/index.html).
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write       # tworzenie Release i wgrywanie assetów
+  id-token: write       # OIDC do provenance attestation
+  attestations: write   # zapis attestacji
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      - name: Compile installer (ISCC)
+        shell: pwsh
+        run: |
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { throw "Nie znaleziono ISCC.exe — sprawdź instalację Inno Setup" }
+          & $iscc "final_installer_v3.4.iss"
+          if ($LASTEXITCODE -ne 0) { throw "ISCC zwrócił kod $LASTEXITCODE" }
+
+      - name: Compute SHA-256 and release notes
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem Output -Filter *.exe | Select-Object -First 1
+          if (-not $exe) { throw "Nie znaleziono pliku .exe w Output/" }
+          $hash = (Get-FileHash $exe.FullName -Algorithm SHA256).Hash.ToLower()
+          "$hash  $($exe.Name)" | Out-File -FilePath "Output/SHA256SUMS.txt" -Encoding ascii
+          "EXE_PATH=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding ascii
+          Write-Host "SHA-256: $hash  ($($exe.Name))"
+          # Notatki wydania budujemy tablica stringow + -join, NIE here-stringiem
+          # (here-string wymaga kolumny 0 i rozbija blok YAML "run: |").
+          $repo = $env:GITHUB_REPOSITORY
+          $notes = @(
+            "Instalator zbudowany automatycznie w GitHub Actions z otagowanego kodu — bez ręcznego wgrywania.",
+            "",
+            "## Weryfikacja",
+            "SHA-256 ($($exe.Name)):",
+            "$hash",
+            "",
+            "- Porównanie sumy:  Get-FileHash .\$($exe.Name) -Algorithm SHA256",
+            "- Provenance:  gh attestation verify .\$($exe.Name) --repo $repo",
+            "",
+            "Pełna suma jest też w pliku SHA256SUMS.txt. Instalator nie jest podpisany płatnym certyfikatem, więc Windows pokaże SmartScreen — kliknij Więcej informacji, potem Uruchom mimo to. Niepodpisane instalatory Inno bywają fałszywie flagowane przez część silników AV — w razie wątpliwości porównaj SHA-256."
+          ) -join "`n"
+          $notes | Out-File -FilePath "Output/NOTES.md" -Encoding utf8
+
+      - name: Attest build provenance
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: ${{ env.EXE_PATH }}
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          $assets = @("$env:EXE_PATH", "Output/SHA256SUMS.txt")
+          # Idempotentnie: jesli Release dla tagu juz istnieje (re-run) — podmien assety,
+          # w przeciwnym razie utworz nowy.
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag $assets --clobber
+            gh release edit $tag --notes-file Output/NOTES.md
+          } else {
+            gh release create $tag $assets --title "WhisperVoice $tag" --notes-file Output/NOTES.md
+          }

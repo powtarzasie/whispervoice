@@ -1,0 +1,35 @@
+# WhisperVoice — co NIE trafia do publicznego repo (standard wydawniczy GH)
+
+# --- Python / runtime ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# --- Dane użytkownika / runtime (tworzone w %APPDATA%\WhisperVoice) ---
+error.log
+install.log
+terms_acceptance.json
+config_user.json
+cuda_check.tmp
+
+# --- Artefakty builda instalatora — instalator idzie do Releases, NIE do drzewa ---
+Output/
+*.exe
+
+# --- Archiwum lokalne (stare instalatory, kopie aplikacji) — NIGDY do publicznego repo ---
+ARCHIWUM/
+
+# --- Notatki wewnętrzne / dev — tylko lokalnie ---
+dev-docs/
+dev-tools/
+CLAUDE.md
+docs/pamiec-sesji/
+# UWAGA: nie ignorujemy całego docs/ — tam mieszka landing (docs/index.html)!
+
+# --- Pliki tymczasowe edytorów / systemu ---
+*.tmp
+*.bak
+Thumbs.db
+desktop.ini
